@@ -9,7 +9,7 @@ public class Cube : MonoBehaviour
     private Material material;
     // Start is called before the first frame update
 
-    private void Start()
+    private void Awake()
     {
         material = GetComponent<MeshRenderer>().material;
     }
@@ -41,7 +41,7 @@ public class Cube : MonoBehaviour
     {
         while (material.color != Color.white)
         {
-            material.color = Color.Lerp(material.color, Color.white, 0.04f);
+            material.color = Color.Lerp(material.color, Color.white, 0.05f);
             yield return new WaitForSeconds(0.01f);
         }
     }

@@ -42,8 +42,8 @@ public class NoteGenerator : MonoBehaviour
     
     public List<float> GenerateNoteTimingsByBPM(int noteCount, float bpm, float offset)
     {
-        bpm *= 2;
-        noteCount *= 2;
+        // bpm *= 2;
+        // noteCount *= 2;
         
         List<float> timings = new List<float>();
         float secondsPerBeat = 60f / bpm;

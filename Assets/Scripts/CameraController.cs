@@ -1,11 +1,12 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class CameraController : MonoBehaviour
 {
     public Camera mainCamera; // Unity Inspector에서 메인 카메라를 할당하세요.
-    public Vector3[] targetPositions; // 카메라가 바라볼 좌표 배열
+    public List<Vector3> targetPositions = new List<Vector3>(); // 카메라가 바라볼 좌표 배열
     private Vector3 targetCameraPosition;
     public float extraSpaceFactor = 1.2f; // 바운딩 박스에 추가할 공간 비율
     public float minSize = 5f; // 최소 크기 설정
@@ -17,11 +18,13 @@ public class CameraController : MonoBehaviour
 
     void Start()
     {
+        targetPositions.Add(Vector3.zero);
+        AdjustCameraPosition();
     }
 
     public void AdjustCameraPosition()
     {
-        if (targetPositions.Length == 0)
+        if (targetPositions.Count == 0)
         {
             Debug.LogWarning("No target positions provided.");
             return;
@@ -47,9 +50,9 @@ public class CameraController : MonoBehaviour
         // mainCamera.transform.position = targetCameraPosition;
     }
 
-    Bounds CalculateBounds(Vector3[] positions)
+    Bounds CalculateBounds(List<Vector3> positions)
     {
-        if (positions.Length == 0)
+        if (positions.Count == 0)
         {
             return new Bounds(Vector3.zero, Vector3.zero);
         }

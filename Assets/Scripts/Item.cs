@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using DG.Tweening;
+using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -11,12 +12,16 @@ using UnityEngine.SceneManagement;
 
 public class Item : MonoBehaviour
 {
-    public bool isMouseOn = false;
+    private bool isMouseOn = false;
+    public GameData gameData;
+    private TextMeshPro tmp; 
+    public string title;
     
     // Start is called before the first frame update
     void Start()
     {
-        
+        tmp = transform.GetComponentInChildren<TextMeshPro>();
+        tmp.text = title;
     }
 
     // Update is called once per frame
@@ -30,7 +35,7 @@ public class Item : MonoBehaviour
         if (!isMouseOn)
         {
             // GetComponent<>()
-            GetComponent<DOTweenAnimation>().DORestartById("mouseOn");
+            // GetComponent<DOTweenAnimation>().DORestartById("mouseOn");
             foreach (DOTweenAnimation i in transform.GetComponentsInChildren<DOTweenAnimation>())
             {
                 i.DORestart();
@@ -45,7 +50,7 @@ public class Item : MonoBehaviour
         if (isMouseOn)
         {
             // GetComponent<DOTweenAnimation>().DORestartById("mouseOut");
-            GetComponent<DOTweenAnimation>().DOPlayBackwardsById("mouseOn");
+            // GetComponent<DOTweenAnimation>().DOPlayBackwardsById("mouseOn");
             foreach (DOTweenAnimation i in transform.GetComponentsInChildren<DOTweenAnimation>())
             {
                 i.DOPlayBackwards();
@@ -58,7 +63,7 @@ public class Item : MonoBehaviour
     public void Selected()
     {
         GetComponent<DOTweenAnimation>().DORestartById("selected");
-
+        GameObject.Find("DataPasser").GetComponent<DataPasser>().SetGameData(gameData);
 
         StartCoroutine(fadeOut());
         StartCoroutine(LoadSampleSceneAfterDelay(0.5f));

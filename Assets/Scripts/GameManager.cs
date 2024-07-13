@@ -11,38 +11,31 @@ using Random = UnityEngine.Random;
 
 public class GameManager : MonoBehaviour
 {
-    [SerializeField] private float offset;
-    [SerializeField]
-    private GameObject _cubesParent;
-    [SerializeField]
-    private Camera _mainCamera;
-    public List<float> noteTimings;
-    private int noteIndex = 0;
-    
-    public AudioSource musicSource;
-    private float startTime;
-    private List<GameObject> gameObjects;
-    
-    [SerializeField]
-    private TextMeshProUGUI testText;
-    [SerializeField]
-    private GameObject cubePrefab;
-    
+    //GameData
+    private float offset;
     private float clickAccuracy = 0.3f;
     private float clickDetection = 0.5f;
     private int cubeCount = 4;
-
     private float health = 1;
+    
+    private AudioSource musicSource;
+    
+    [SerializeField] private GameObject _cubesParent;
+    [SerializeField] private Camera _mainCamera;
+    public List<float> noteTimings;
+    private int noteIndex = 0;
+    
+    private float startTime;
+    private List<GameObject> gameObjects;
+    
+    [SerializeField] private TextMeshProUGUI testText;
+    [SerializeField] private GameObject cubePrefab;
 
     [SerializeField] private GameObject menu;
-
     [SerializeField] private GameObject main;
-    // Start is called before the first frame update
+
+    private List<float> recordedDifferences = new List<float>();
     
-    bool IsCoroutineRunning(IEnumerator coroutine)
-    {
-        return coroutine != null && coroutine.MoveNext();
-    }
 
     void reduceHealth()
     {
@@ -53,9 +46,6 @@ public class GameManager : MonoBehaviour
             endGame();
         }
     }
-    
-    
-
 
     private void GameStart()
     {
@@ -100,10 +90,9 @@ public class GameManager : MonoBehaviour
         return children;
     }
 
-
     void increaseNoteCount()
     {
-        noteIndex+=2;
+        noteIndex+=1; // +=2
         if (noteIndex >= noteTimings.Count)
         {
             StopAllCoroutines();
@@ -119,14 +108,9 @@ public class GameManager : MonoBehaviour
         newCube.transform.position = placeablePositions[Random.Range(0, placeablePositions.Count)];
         Debug.Log(newCube.transform.position);
         
-        GetComponent<CameraController>().targetPositions = placeablePositions.ToArray();
+        GetComponent<CameraController>().targetPositions = placeablePositions;
         GetComponent<CameraController>().AdjustCameraPosition();
     }
-    
-    
-    
-
-    
 
     float getMusicTime()
     {
@@ -138,63 +122,41 @@ public class GameManager : MonoBehaviour
         Application.targetFrameRate = 60; // 60 FPS 고정
     }
 
+    public void SetData(GameData gameData)
+    {
+        if (musicSource == null)
+        {
+            musicSource = GetComponent<AudioSource>();
+        }
+        
+        offset = gameData.offset;
+        musicSource.clip = gameData.musicClip;
+        clickAccuracy = gameData.clickAccuracy;
+        clickDetection = gameData.clickDetection;
+        cubeCount = gameData.cubeCount;
+        health = gameData.health;
+        noteTimings = new List<float>(gameData.noteTimings);
+        
+        StartCoroutine(GameStartInTime());
+    }
+    
     void Start()
     {
+        musicSource = GetComponent<AudioSource>();
         gameObject.AddComponent<PlacePositionGetter>();
         gameObject.AddComponent<CameraController>();
         GetComponent<CameraController>().mainCamera = _mainCamera;
-        GameStart();
         var white = GameObject.Find("White").GetComponent<Image>();
         white.color = new Color(1, 1, 1, 1);
         StartCoroutine(fadeIn());
-        
     }
     
-    /// <summary>
-    /// 주어진 개수와 간격으로 가상의 노트 타이밍을 생성하는 함수
-    /// </summary>
-    /// <param name="noteCount">생성할 노트의 개수</param>
-    /// <param name="interval">노트 간의 시간 간격 (초)</param>
-    /// <returns>생성된 노트 타이밍 리스트</returns>
-    public List<float> GenerateNoteTimings(int noteCount, float interval)
+    IEnumerator GameStartInTime()
     {
-        List<float> timings = new List<float>();
-
-        for (int i = 0; i < noteCount; i++)
-        {
-            timings.Add(i * interval);
-        }
-
-        return timings;
+        yield return new WaitForSeconds(2f);
+        GameStart();
     }
     
-    /// <summary>
-    /// 주어진 반복 횟수만큼 _cubesParent의 자식 중 하나를 랜덤으로 선택하여 리스트에 저장하고 반환하는 함수
-    /// </summary>
-    /// <param name="repeatCount">반복 횟수</param>
-    /// <param name="_cubesParent">자식들을 포함하는 부모 Transform</param>
-    /// <returns>랜덤으로 선택된 자식들의 리스트</returns>
-    public List<GameObject> GetRandomChildren(int repeatCount, Transform _cubesParent)
-    {
-        List<GameObject> selectedChildren = new List<GameObject>();
-
-        // 자식 오브젝트의 수를 얻음
-        int childCount = _cubesParent.childCount;
-
-        // 랜덤으로 자식 선택
-        for (int i = 0; i < repeatCount; i++)
-        {
-            // 랜덤 인덱스 생성
-            int randomIndex = Random.Range(0, childCount);
-
-            // 랜덤으로 선택된 자식을 리스트에 추가
-            Transform selectedChild = _cubesParent.GetChild(randomIndex);
-            selectedChildren.Add(selectedChild.gameObject);
-        }
-
-        return selectedChildren;
-    }
-
     void Update()
     {
         // 마우스 왼쪽 버튼이 클릭되었을 때
@@ -225,11 +187,28 @@ public class GameManager : MonoBehaviour
         return null;
     }
 
+    public List<GameObject> GetRandomChildren(int repeatCount, Transform _cubesParent)
+    {
+        List<GameObject> selectedChildren = new List<GameObject>();
 
+        // 자식 오브젝트의 수를 얻음
+        int childCount = _cubesParent.childCount;
 
+        // 랜덤으로 자식 선택
+        for (int i = 0; i < repeatCount; i++)
+        {
+            // 랜덤 인덱스 생성
+            int randomIndex = Random.Range(0, childCount);
+
+            // 랜덤으로 선택된 자식을 리스트에 추가
+            Transform selectedChild = _cubesParent.GetChild(randomIndex);
+            selectedChildren.Add(selectedChild.gameObject);
+        }
+
+        return selectedChildren;
+    }
     private IEnumerator ProcessNotesByCom()
     {
-        spawnCube();
         gameObjects = GetRandomChildren(cubeCount, _cubesParent.transform);
         
         int index = 0;
@@ -249,6 +228,7 @@ public class GameManager : MonoBehaviour
             // 현재 시간이 다음 노트 타이밍을 지났는지 확인
             if (musicTime >= noteTimings[noteIndex])
             {
+                Debug.Log("process: " + noteTimings[noteIndex]);
                 // 리스트의 현재 인덱스에 해당하는 게임 오브젝트 처리
                 ProcessGameObject(gameObjects[index]);
 
@@ -260,10 +240,10 @@ public class GameManager : MonoBehaviour
             // 다음 프레임까지 대기
             yield return null;
         }
-
+        
+        spawnCube();
         yield return StartCoroutine(ProcessNotesByClick());
     }
-    
     private IEnumerator ProcessNotesByClick()
     {
         int index = 0;
@@ -282,7 +262,7 @@ public class GameManager : MonoBehaviour
             float noteTime = noteTimings[noteIndex];
             float difference = Mathf.Abs(clickTime - noteTime);
 
-            testText.text = difference.ToString();
+            // testText.text = difference.ToString();
             // 클릭 감지
             if (Input.GetMouseButtonDown(0))
             {
@@ -290,6 +270,8 @@ public class GameManager : MonoBehaviour
                 
                 var curObject = castObject();
                 Debug.Log(gameObjects[index]);
+                
+                recordedDifferences.Add(difference/clickDetection);
 
                 // 오차 범위 내에 클릭이 있으면 처리
                 if (difference <= clickAccuracy && gameObjects[index].transform.GetChild(0).gameObject ==  curObject)
@@ -330,24 +312,19 @@ public class GameManager : MonoBehaviour
     /// <param name="obj">처리할 게임 오브젝트</param>
     private void ProcessGameObject(GameObject obj)
     {
-        // 여기서 원하는 처리를 수행합니다.
-        // 예를 들어, 오브젝트를 활성화하거나 특정 동작을 수행할 수 있습니다.
-        // obj.SetActive(true);
-        // Debug.Log("Processed GameObject: " + obj.name);
         obj.transform.GetChild(0).gameObject.GetComponent<Cube>().clickObject(false);
     }
 
     void fail()
     {
-        // _mainCamera.GetComponent<DOTweenAnimation>().DORestart();
         reduceHealth();
     }
-
     void endGame()
     {
         menu.SetActive(true);
         StopAllCoroutines();
         StartCoroutine(PichToZero());
+        menu.GetComponent<ResultMenu>().SetData(recordedDifferences, musicSource);
         main.GetComponent<DOTweenAnimation>().DORestart();
     }
     
