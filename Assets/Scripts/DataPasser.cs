@@ -6,6 +6,7 @@ using UnityEngine.SceneManagement;
 public class DataPasser : MonoBehaviour
 {
     private GameData gameData;
+    public float deviceOffset;
     
     public void SetGameData(GameData data)
     {
@@ -44,7 +45,7 @@ public class DataPasser : MonoBehaviour
                 GameManager gameManager = gameManagerObject.GetComponent<GameManager>();
                 if (gameManager != null)
                 {
-                    gameManager.SetData(gameData);
+                    gameManager.SetData(gameData, deviceOffset);
                 }
                 else
                 {

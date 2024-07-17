@@ -7,10 +7,25 @@ using UnityEngine.SceneManagement;
 public class MenuManager : MonoBehaviour
 {
     GameObject lastSelectedObject = null;
+    
+    public GameObject settingMenu;
+    bool isSettingMenuOn = false;
+    
     // Start is called before the first frame update
     void Start()
     {
         
+    }
+
+    public void triggerSettingMenu()
+    {
+        isSettingMenuOn = !isSettingMenuOn;
+        settingMenu.SetActive(isSettingMenuOn);
+    }
+    
+    public void syncPage()
+    {
+        SceneManager.LoadScene("OffsetScene");
     }
 
     
@@ -18,11 +33,16 @@ public class MenuManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (Input.GetKeyDown(KeyCode.D))
+        {
+            SceneManager.LoadScene("OffsetScene");
+            Debug.Log("offset scene");
+        }
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         RaycastHit hit;
 
         // 레이가 어떤 오브젝트에 부딪혔는지 확인
-        if (Physics.Raycast(ray, out hit))
+        if (!isSettingMenuOn && Physics.Raycast(ray, out hit))
         {
             // 부딪힌 오브젝트의 정보를 얻고, 원하는 작업을 수행
             if (Input.GetMouseButtonDown(0))

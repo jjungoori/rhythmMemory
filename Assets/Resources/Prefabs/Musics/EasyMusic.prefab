@@ -44,7 +44,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f8e09b3dc1b61f446bd2aab78b560bae, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  offset: 2.3
+  offset: 2
   musicClip: {fileID: 8300000, guid: b39899331a601ab4e89ea29017a2fa9c, type: 3}
   clickAccuracy: 0.3
   clickDetection: 0.5

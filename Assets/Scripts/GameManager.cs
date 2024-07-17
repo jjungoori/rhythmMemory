@@ -6,6 +6,7 @@ using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Rendering.PostProcessing;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Random = UnityEngine.Random;
 
@@ -16,7 +17,7 @@ public class GameManager : MonoBehaviour
     private float clickAccuracy = 0.3f;
     private float clickDetection = 0.5f;
     private int cubeCount = 4;
-    private float health = 1;
+    private float health;
     
     private AudioSource musicSource;
     
@@ -93,7 +94,8 @@ public class GameManager : MonoBehaviour
     void increaseNoteCount()
     {
         noteIndex+=1; // +=2
-        if (noteIndex >= noteTimings.Count)
+        Debug.Log(noteIndex + " and " + noteTimings.Count.ToString());
+        if (noteIndex >= noteTimings.Count-1)
         {
             StopAllCoroutines();
             endGame();
@@ -114,7 +116,7 @@ public class GameManager : MonoBehaviour
 
     float getMusicTime()
     {
-        return Time.time - startTime;
+        return musicSource.time;
     }
 
     private void Awake()
@@ -122,14 +124,14 @@ public class GameManager : MonoBehaviour
         Application.targetFrameRate = 60; // 60 FPS 고정
     }
 
-    public void SetData(GameData gameData)
+    public void SetData(GameData gameData, float deviceOffset)
     {
         if (musicSource == null)
         {
             musicSource = GetComponent<AudioSource>();
         }
         
-        offset = gameData.offset;
+        offset = gameData.offset + deviceOffset;
         musicSource.clip = gameData.musicClip;
         clickAccuracy = gameData.clickAccuracy;
         clickDetection = gameData.clickDetection;
@@ -159,11 +161,8 @@ public class GameManager : MonoBehaviour
     
     void Update()
     {
-        // 마우스 왼쪽 버튼이 클릭되었을 때
-        if (Input.GetMouseButtonDown(0))
-        {
-            
-        }
+
+        
     }
 
     GameObject castObject()
