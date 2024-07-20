@@ -58,7 +58,7 @@ public class ResultMenu : MonoBehaviour
             averageDifference = sumOfDifferences / recordedDifferences.Count;
         }
         
-        float process = musicSource.time / musicSource.clip.length;
+        float process = (float)AudioSettings.dspTime / musicSource.clip.length;
         process = process == 0 ? 100 : process;
         
         process = Mathf.Round(process * 100);

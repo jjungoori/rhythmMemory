@@ -20,13 +20,14 @@ public class GameManager : MonoBehaviour
     private float health;
     
     private AudioSource musicSource;
+    private CameraController camCon;
     
     [SerializeField] private GameObject _cubesParent;
     [SerializeField] private Camera _mainCamera;
     public List<float> noteTimings;
     private int noteIndex = 0;
     
-    private float startTime;
+    private double startTime;
     private List<GameObject> gameObjects;
     
     [SerializeField] private TextMeshProUGUI testText;
@@ -36,6 +37,10 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject main;
 
     private List<float> recordedDifferences = new List<float>();
+
+    private bool isProcessingNotesByCom = true;
+    private int comIndex = 0;
+    private int clickIndex = 0;
     
 
     void reduceHealth()
@@ -48,37 +53,42 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    private void GameStart()
+    private float GetDeviceAudioLatency()
     {
-        
-        // Debug.Log("Calculated BPM: " + calculatedBPM);
-        // Debug.Log("length: " + musicSource.clip.length);
-
-        // Generate note timings
-        noteTimings = gameObject.AddComponent<NoteGenerator>().GenerateNote(musicSource, offset);
-
-
-
-        // 필요한 데이터 초기화 및 준비 작업
-        // gameObjects = GetRandomChildren(cubeCount, _cubesParent.transform);
-        // noteTimings = GenerateNoteTimings(10, beatInterval); // 주석 처리된 코드는 필요에 따라 사용할 수 있습니다.
-        musicSource = GetComponent<AudioSource>(); // AudioSource 가져오기
-        musicSource.Play(); // 음악 재생
-
-        // 시작 시간 기록
-        startTime = Time.time;
-
-        // 코루틴 시작
-        StartCoroutine(StartProcessNotes());
-    }
-    
-    IEnumerator StartProcessNotes()
+#if UNITY_ANDROID && !UNITY_EDITOR
+    try
     {
-        while (musicSource.isPlaying)
+        using (AndroidJavaObject audioManager = new AndroidJavaObject("android.media.AudioManager"))
         {
-            yield return StartCoroutine(ProcessNotesByCom());
+            string latencyProperty = audioManager.Call<string>("getProperty", "android.media.property.OUTPUT_LATENCY");
+            if (latencyProperty != null)
+            {
+                return float.Parse(latencyProperty) / 1000f; // milliseconds to seconds
+            }
         }
     }
+    catch (Exception e)
+    {
+        Debug.LogWarning("Failed to get audio latency: " + e.Message);
+    }
+#endif
+        return 0f; // Return 0 if not on Android or in case of an error
+    }
+
+    
+    private void GameStart()
+    {
+        noteTimings = gameObject.AddComponent<NoteGenerator>().GenerateNote(musicSource, offset);
+        musicSource = GetComponent<AudioSource>();
+        startTime = AudioSettings.dspTime;
+        musicSource.PlayScheduled(startTime);
+        
+        isProcessingNotesByCom = true;
+        comIndex = 0;
+        clickIndex = 0;
+        gameObjects = GetRandomChildren(cubeCount, _cubesParent.transform);
+    }
+    
 
     List<Transform> getCubes()
     {
@@ -114,14 +124,21 @@ public class GameManager : MonoBehaviour
         GetComponent<CameraController>().AdjustCameraPosition();
     }
 
-    float getMusicTime()
+    // float getMusicTime()
+    // {
+    //     // return musicSource.time;
+    //     return (float)AudioSettings.dspTime;
+    // }
+    //
+    private float GetCurrentTime()
     {
-        return musicSource.time;
+        // Use AudioSettings.dspTime for more accurate timing
+        float deviceLatency = GetDeviceAudioLatency();
+        return (float)(AudioSettings.dspTime - startTime - deviceLatency);
     }
-
     private void Awake()
     {
-        Application.targetFrameRate = 60; // 60 FPS 고정
+        Application.targetFrameRate = 60;
     }
 
     public void SetData(GameData gameData, float deviceOffset)
@@ -145,6 +162,7 @@ public class GameManager : MonoBehaviour
     void Start()
     {
         musicSource = GetComponent<AudioSource>();
+        camCon = GetComponent<CameraController>();
         gameObject.AddComponent<PlacePositionGetter>();
         gameObject.AddComponent<CameraController>();
         GetComponent<CameraController>().mainCamera = _mainCamera;
@@ -161,8 +179,10 @@ public class GameManager : MonoBehaviour
     
     void Update()
     {
-
-        
+        if (Input.GetMouseButtonDown(0) && !isProcessingNotesByCom)
+        {
+            HandleClick();
+        }
     }
 
     GameObject castObject()
@@ -206,105 +226,83 @@ public class GameManager : MonoBehaviour
 
         return selectedChildren;
     }
-    private IEnumerator ProcessNotesByCom()
+    private void ProcessNotesByCom()
     {
-        gameObjects = GetRandomChildren(cubeCount, _cubesParent.transform);
+        float musicTime = GetCurrentTime();
         
-        int index = 0;
-
-        if (noteIndex >= noteTimings.Count)
+        if (comIndex < gameObjects.Count && musicTime >= noteTimings[noteIndex])
         {
-            // Debug.Log("error by noteIndex");
-            yield break;
-        }
+            ProcessGameObject(gameObjects[comIndex]);
+            comIndex++;
+            increaseNoteCount();
 
-        while (index < gameObjects.Count)
-        {
-            // 현재 음악 재생 시간 계산
-            // float musicTime = musicSource.time;
-            var musicTime = getMusicTime();
-            
-            // 현재 시간이 다음 노트 타이밍을 지났는지 확인
-            if (musicTime >= noteTimings[noteIndex])
+            if (comIndex >= gameObjects.Count)
             {
-                Debug.Log("process: " + noteTimings[noteIndex]);
-                // 리스트의 현재 인덱스에 해당하는 게임 오브젝트 처리
-                ProcessGameObject(gameObjects[index]);
-
-                // 인덱스 증가
-                index++;
-                increaseNoteCount();
+                isProcessingNotesByCom = false;
+                spawnCube();
+                clickIndex = 0;
             }
-
-            // 다음 프레임까지 대기
-            yield return null;
         }
-        
-        spawnCube();
-        yield return StartCoroutine(ProcessNotesByClick());
     }
-    private IEnumerator ProcessNotesByClick()
+
+    private void ProcessNotesByClick()
     {
-        int index = 0;
-        while (index < gameObjects.Count)
+        float musicTime = GetCurrentTime();
+
+        if (clickIndex >= gameObjects.Count)
         {
-            // 현재 음악 재생 시간 계산
-            var musicTime = getMusicTime();
+            isProcessingNotesByCom = true;
+            comIndex = 0;
+            gameObjects = GetRandomChildren(cubeCount, _cubesParent.transform);
+            return;
+        }
 
-            // 현재 시간이 노트 타이밍보다 앞서면 다음 프레임까지 대기
-            if (musicTime < noteTimings[noteIndex]-clickDetection)
+        if (musicTime >= noteTimings[noteIndex] + clickAccuracy)
+        {
+            fail();
+            increaseNoteCount();
+            clickIndex++;
+        }
+    }
+
+    private void HandleClick()
+    {
+        float musicTime = GetCurrentTime();
+        float noteTime = noteTimings[noteIndex];
+        float difference = Mathf.Abs(musicTime - noteTime);
+
+        var curObject = castObject();
+        recordedDifferences.Add(difference / clickDetection);
+
+        if (difference <= clickAccuracy && gameObjects[clickIndex].transform.GetChild(0).gameObject == curObject)
+        {
+            increaseNoteCount();
+            clickIndex++;
+        }
+        else
+        {
+            fail();
+            increaseNoteCount();
+            clickIndex++;
+        }
+    }
+
+    private void FixedUpdate()
+    {
+        if (musicSource.isPlaying)
+        {
+            if (isProcessingNotesByCom)
             {
-                yield return null;
-                continue;
-            }
-            float clickTime = musicTime;
-            float noteTime = noteTimings[noteIndex];
-            float difference = Mathf.Abs(clickTime - noteTime);
-
-            // testText.text = difference.ToString();
-            // 클릭 감지
-            if (Input.GetMouseButtonDown(0))
-            {
-                // 클릭한 시간과 노트 타이밍 사이의 차이 계산
-                
-                var curObject = castObject();
-                Debug.Log(gameObjects[index]);
-                
-                recordedDifferences.Add(difference/clickDetection);
-
-                // 오차 범위 내에 클릭이 있으면 처리
-                if (difference <= clickAccuracy && gameObjects[index].transform.GetChild(0).gameObject ==  curObject)
-                {
-                    // Debug.Log("Clicked! Clicked at " + clickTime + ", expected " + noteTime);
-                    // ProcessGameObject(gameObjects[index]);
-                    increaseNoteCount();
-                    index++;
-                }
-                else
-                {
-                    fail();
-                    // Debug.Log("Missed! Clicked at " + clickTime + ", expected " + noteTime);
-                    // 클릭 실패 시 다음 노트로 넘어감
-                    increaseNoteCount();                    
-                    index++;
-                }
+                ProcessNotesByCom();
             }
             else
             {
-                if (musicTime - noteTimings[noteIndex] > clickAccuracy)
-                {
-                    fail();
-                    // Debug.Log("Missed! Didn't Click at " + musicTime + ", expected " + noteTimings[noteIndex]);
-                    increaseNoteCount();                    
-                    index++;
-                }
+                ProcessNotesByClick();
             }
-
-            yield return null;
         }
     }
 
-    
+
     /// <summary>
     /// 게임 오브젝트를 처리하는 함수
     /// </summary>
@@ -329,9 +327,9 @@ public class GameManager : MonoBehaviour
     
     IEnumerator PichToZero()
     {
-        while (GetComponent<AudioSource>().pitch > 0)
+        while (musicSource.pitch > 0)
         {
-            GetComponent<AudioSource>().pitch -= 0.05f;
+            musicSource.pitch -= 0.05f;
             yield return new WaitForSeconds(0.2f);
         }
     }
